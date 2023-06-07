@@ -1,0 +1,90 @@
+import opencv-py
+import numpy as np
+
+
+
+#function for matching points in different photos
+def match_points(points_before, points_after):
+      matched_points = []
+  
+      # Iterate over the points in the "points_before" list
+      for point_before in points_before:
+          best_match = None
+          best_match_score = float('inf')
+  
+          # Iterate over the points in the "points_after" list
+          for point_after in points_after:
+              # Calculate the score for matching the points
+              score = abs(point_before.x - point_after.x) + abs(point_before.y - point_after.y) + abs(point_before.area - point_after.area)
+  
+              # Check if the current match has a lower score (better match)
+              if score < best_match_score:
+                  best_match = point_after
+                  best_match_score = score
+  
+          # Add the best match to the list of matched points
+          matched_points.append((point_before, best_match))
+  
+          # Remove the matched point to avoid duplicate matches
+          points_after.remove(best_match)
+  
+      return matched_points
+  
+  
+
+
+def find_points_in_image(image_path):
+    # Load the image
+    image = cv2.imread(image_path)
+
+    # Convert the image to grayscale
+    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Enhance the contrast of the image using histogram equalization
+    equalized_image = cv2.equalizeHist(grayscale_image)
+
+    # Apply adaptive thresholding to obtain a binary image
+    _, thresholded_image = cv2.threshold(equalized_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Apply morphological operations to remove noise and fill gaps
+    kernel = np.ones((3, 3), np.uint8)
+    morph_image = cv2.morphologyEx(thresholded_image, cv2.MORPH_CLOSE, kernel)
+
+    # Find contours in the processed image
+    contours, _ = cv2.findContours(morph_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Define parameters for point detection
+    min_point_area = 50  # Minimum area of a point contour
+    max_point_area = 500  # Maximum area of a point contour
+
+    # Filter and extract points from contours
+    points = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if min_point_area < area < max_point_area:
+            # Get the bounding rectangle of the contour
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # Calculate the center of the bounding rectangle
+            center_x = x + w // 2
+            center_y = y + h // 2
+
+            # Add the point coordinates to the list
+            points.append((center_x, center_y))
+
+    return points
+    
+    
+image1 = "G4-2000.bmp"
+image1Points = find_points_in_image(image1)
+for i in image1Points:
+  print(image1Points(i))
+
+def calculateStrainTensor(points_before,points_after):
+  strainTensors = []
+  for i in points_before:
+    dx = points_before(i,1)-points_after(i,1)
+    dy = points_before(i,2)-points_after(i,2)
+    a = np.array([dx/dx,dx/dy;dy/dx,dy/dy])
+    E = (1/2)(np.dot(a,a.T)-np.eye(2))
+    strainTensors.append(E)
